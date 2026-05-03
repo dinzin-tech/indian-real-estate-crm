@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Lead - Indian Real Estate CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Edit Lead</h1>
+    <form action="/leads/{{ lead.id }}" method="POST">
+        <input type="hidden" name="_method" value="PUT">
+        
+        <div class="form-group">
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" value="{{ lead.name }}" required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Phone (Indian +91) *</label>
+            <input type="text" id="phone" name="phone" pattern="\+91[0-9]{10}" value="{{ lead.phone }}" required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ lead.email ?? '' }}" class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="property_preferences">Property Preferences</label>
+            <textarea id="property_preferences" name="property_preferences" rows="3" class="form-control">{{ lead.property_preferences ?? '' }}</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="source_portal">Source Portal</label>
+            <select id="source_portal" name="source_portal" class="form-control">
+                <option value="">Select portal</option>
+                {% for portal in portals %}
+                <option value="{{ portal }}" {% if lead.source_portal == portal %}selected{% endif %}>{{ portal }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="gstin">GSTIN (for B2B leads)</label>
+            <input type="text" id="gstin" name="gstin" value="{{ lead.gstin ?? '' }}" class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="rera_number">RERA Number</label>
+            <input type="text" id="rera_number" name="rera_number" value="{{ lead.rera_number ?? '' }}" class="form-control">
+        </div>
+        
+        <button type="submit" class="btn btn-success">Update Lead</button>
+        <a href="/leads" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

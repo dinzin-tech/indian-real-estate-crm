@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Stamp Duty Result - Indian Real Estate{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Stamp Duty Calculation Result</h1>
+    
+    <div class="card">
+        <h3>Transaction Details</h3>
+        <p><strong>State:</strong> {{ state }}</p>
+        <p><strong>Property Type:</strong> {{ property_type|capitalize }}</p>
+        <p><strong>Property Value:</strong> ₹{{ property_value|number_format(2) }}</p>
+        <p><strong>Owner Gender:</strong> {{ owner_gender|capitalize }}</p>
+    </div>
+    
+    <div class="card">
+        <h3>Charges Breakdown</h3>
+        <table class="table">
+            <tr>
+                <td>Stamp Duty Rate</td>
+                <td>{{ stamp_duty_rate }}%</td>
+            </tr>
+            {% if rebate > 0 %}
+            <tr>
+                <td>Women Rebate</td>
+                <td>-{{ rebate }}%</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td>Stamp Duty Amount</td>
+                <td>₹{{ stamp_duty|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td>Registration Charge (1%)</td>
+                <td>₹{{ registration_charge|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Total Payable</strong></td>
+                <td><strong>₹{{ total|number_format(2) }}</strong></td>
+            </tr>
+        </table>
+    </div>
+    
+    <a href="/stamp-duty" class="btn btn-secondary">Calculate Again</a>
+</div>
+
+<style>
+.card { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+.table { width: 100%; border-collapse: collapse; }
+.table td { padding: 8px; border-bottom: 1px solid #ddd; }
+</style>
+{% endblock %}

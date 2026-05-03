@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Stamp Duty Calculator - Indian Real Estate{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Stamp Duty Calculator (India)</h1>
+    <p>Calculate stamp duty and registration charges for property transactions across Indian states.</p>
+    
+    <form action="/stamp-duty/calculate" method="POST">
+        <div class="form-group">
+            <label for="state">State *</label>
+            <select id="state" name="state" required class="form-control">
+                <option value="">Select state</option>
+                {% for state in states %}
+                <option value="{{ state }}">{{ state }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="property_type">Property Type *</label>
+            <select id="property_type" name="property_type" required class="form-control">
+                <option value="">Select type</option>
+                {% for type in property_types %}
+                <option value="{{ type }}">{{ type|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="property_value">Property Value (INR) *</label>
+            <input type="number" id="property_value" name="property_value" min="0" step="100000" required class="form-control" placeholder="e.g., 5000000">
+        </div>
+        
+        <div class="form-group">
+            <label for="owner_gender">Owner Gender (for rebate eligibility)</label>
+            <select id="owner_gender" name="owner_gender" class="form-control">
+                <option value="male">Male</option>
+                <option value="female">Female (some states offer rebate)</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Calculate</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Send WhatsApp Message - Indian Real Estate{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Send WhatsApp Message to {{ lead.name }}</h1>
+    <p>Phone: {{ lead.phone }}</p>
+    
+    <form action="/whatsapp/send" method="POST">
+        <input type="hidden" name="lead_id" value="{{ lead.id }}">
+        
+        <div class="form-group">
+            <label for="template">Message Template</label>
+            <select id="template" name="template" class="form-control" onchange="updateMessage()">
+                <option value="custom">Custom Message</option>
+                {% for key, template in templates %}
+                <option value="{{ key }}">{{ key|replace({'_': ' '})|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="custom_message">Message</label>
+            <textarea id="custom_message" name="custom_message" rows="4" class="form-control" required>Hello {{ lead.name }}, thank you for your interest.</textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-success">Send WhatsApp (Simulated)</button>
+        <a href="/leads" class="btn btn-secondary">Back to Leads</a>
+    </form>
+</div>
+
+<script>
+const templates = {{ templates|json_encode|raw }};
+function updateMessage() {
+    const templateKey = document.getElementById('template').value;
+    const textarea = document.getElementById('custom_message');
+    if (templateKey !== 'custom' && templates[templateKey]) {
+        textarea.value = templates[templateKey].replace('{{name}}', '{{ lead.name }}');
+    }
+}
+</script>
+{% endblock %}

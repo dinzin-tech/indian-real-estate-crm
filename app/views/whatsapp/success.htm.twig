@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}WhatsApp Message Sent{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Message Sent (Simulated)</h1>
+    <div class="alert alert-success">
+        {{ result.message }}
+    </div>
+    <p>Lead: {{ result.lead_name }}</p>
+    <a href="/leads" class="btn btn-primary">Back to Leads</a>
+</div>
+
+<style>
+.alert { padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+</style>
+{% endblock %}

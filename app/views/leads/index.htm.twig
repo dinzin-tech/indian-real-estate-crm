@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Leads - Indian Real Estate CRM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Leads / Contacts</h1>
+    <a href="/leads/create" class="btn btn-primary">Add New Lead</a>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Source Portal</th>
+                <th>RERA Number</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td>{{ lead.id }}</td>
+                <td>{{ lead.name }}</td>
+                <td>{{ lead.phone }}</td>
+                <td>{{ lead.email ?? '-' }}</td>
+                <td>{{ lead.source_portal ?? '-' }}</td>
+                <td>{{ lead.rera_number ?? '-' }}</td>
+                <td>{{ lead.created_at }}</td>
+                <td>
+                    <a href="/leads/{{ lead.id }}/edit">Edit</a>
+                    <form action="/leads/{{ lead.id }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" onclick="return confirm('Delete this lead?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8">No leads found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
