@@ -1,0 +1,66 @@
+{% extends 'layout.htm.twig' %}
+
+{% block title %}Import Leads from Portals{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Import Leads from External Portals</h1>
+    
+    {% if results %}
+        <div class="alert alert-info">
+            <h4>Import Results:</h4>
+            {% for portal, result in results %}
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ portal }}</h5>
+                        <p class="card-text">{{ result.message }}</p>
+                        {% if result.success and result.imported > 0 %}
+                            <a href="/leads" class="btn btn-sm btn-success">View Leads</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <form method="POST" action="/leads/import">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        
+        <div class="mb-3">
+            <label class="form-label">Select Portals to Import From:</label>
+            <div class="row">
+                {% for portal in portals %}
+                    <div class="col-md-3 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="portals[]" value="{{ portal }}" id="portal_{{ loop.index }}">
+                            <label class="form-check-label" for="portal_{{ loop.index }}">
+                                {{ portal }}
+                            </label>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="alert alert-warning">
+            <strong>Note:</strong> Currently using simulated data. To enable real API integration, configure the following environment variables in your .env file:
+            <ul>
+                <li><code>ACRES_API_KEY</code> - 99acres API key</li>
+                <li><code>MAGICBRICKS_API_KEY</code> - MagicBricks API key</li>
+                <li><code>HOUSING_API_KEY</code> - Housing.com API key</li>
+                <li><code>NOBROKER_API_KEY</code> - NoBroker API key</li>
+            </ul>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Import Selected Portals</button>
+        <a href="/leads" class="btn btn-secondary">Back to Leads</a>
+    </form>
+    
+    <hr>
+    
+    <h3>Webhook Integration</h3>
+    <p>For portals that support webhooks, configure the following endpoint:</p>
+    <pre><code>POST {{ app_url }}/webhook/{portal_name}</code></pre>
+    <p>Replace <code>{portal_name}</code> with: 99acres, MagicBricks, Housing.com, NoBroker</p>
+</div>
+{% endblock %}

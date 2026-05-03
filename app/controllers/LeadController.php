@@ -10,12 +10,21 @@ use App\Models\Lead;
 
 class LeadController extends Controller
 {
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
     /**
-     * List all leads
-     * @Route(path="/leads", methods="GET", name="leads.index")
+     * List all leads / Create new lead
+     * @Route(path="/leads", methods="GET,POST", name="leads.index")
      */
     public function index(Request $request)
     {
+        if ($request->getMethod() === 'POST') {
+            return $this->store($request);
+        }
+        
         $leads = Lead::findAll();
         return $this->render('leads/index.htm.twig', ['leads' => $leads]);
     }
@@ -32,10 +41,9 @@ class LeadController extends Controller
     }
 
     /**
-     * Store new lead
-     * @Route(path="/leads", methods="POST", name="leads.store")
+     * Handle lead creation (used internally by index)
      */
-    public function store(Request $request)
+    private function store(Request $request)
     {
         $data = $request->getPostData();
         
@@ -48,15 +56,24 @@ class LeadController extends Controller
         $lead->gstin = $data['gstin'] ?? null;
         $lead->rera_number = $data['rera_number'] ?? null;
         
+        if (empty($lead->name) || empty($lead->phone)) {
+            return new Response('Name and phone are required', 400);
+        }
+        
+        if (!$lead->isValidRera()) {
+            return new Response('Invalid RERA number format', 400);
+        }
+        
         $lead->save();
         
         // Redirect to leads list
-        return new Response('', 302, ['Location' => '/leads']);
+        header('Location: /leads');
+        exit;
     }
 
     /**
      * Show edit lead form
-     * @Route(path="/leads/{id}/edit", methods="GET", name="leads.edit")
+     * @Route(path="/leads/edit/{id}", methods="GET", name="leads.edit")
      */
     public function edit(Request $request, int $id)
     {
@@ -64,6 +81,7 @@ class LeadController extends Controller
         if (!$lead) {
             return new Response('Lead not found', 404);
         }
+        
         return $this->render('leads/edit.htm.twig', [
             'lead' => $lead,
             'portals' => ['99acres', 'MagicBricks', 'Housing.com', 'NoBroker', 'Direct', 'Other']
@@ -72,7 +90,7 @@ class LeadController extends Controller
 
     /**
      * Update lead
-     * @Route(path="/leads/{id}", methods="POST", name="leads.update")
+     * @Route(path="/leads/update/{id}", methods="POST", name="leads.update")
      */
     public function update(Request $request, int $id)
     {
@@ -82,6 +100,7 @@ class LeadController extends Controller
         }
         
         $data = $request->getPostData();
+        
         $lead->name = $data['name'] ?? $lead->name;
         $lead->phone = $data['phone'] ?? $lead->phone;
         $lead->email = $data['email'] ?? $lead->email;
@@ -92,12 +111,13 @@ class LeadController extends Controller
         
         $lead->save();
         
-        return new Response('', 302, ['Location' => '/leads']);
+        header('Location: /leads');
+        exit;
     }
 
     /**
      * Delete lead
-     * @Route(path="/leads/{id}", methods="DELETE", name="leads.delete")
+     * @Route(path="/leads/delete/{id}", methods="POST", name="leads.delete")
      */
     public function delete(Request $request, int $id)
     {
@@ -105,20 +125,60 @@ class LeadController extends Controller
         if ($lead) {
             $lead->delete();
         }
-        return new Response('', 302, ['Location' => '/leads']);
+        
+        header('Location: /leads');
+        exit;
     }
 
     /**
-     * API: Get leads as JSON (for portal integrations later)
-     * @Route(path="/api/leads", methods="GET", name="api.leads.index")
+     * Import leads from external portals
+     * @Route(path="/leads/import", methods="GET,POST", name="leads.import")
      */
-    public function apiIndex(Request $request)
+    public function import(Request $request)
     {
-        $leads = Lead::findAll();
-        return new Response(
-            json_encode(array_map(fn($l) => $l->toArray(), $leads)),
-            200,
-            ['content-type' => 'application/json']
-        );
+        $portals = ['99acres', 'MagicBricks', 'Housing.com', 'NoBroker'];
+        $results = [];
+        
+        if ($request->getMethod() === 'POST') {
+            $selectedPortals = $request->post('portals', []);
+            
+            foreach ($selectedPortals as $portal) {
+                $results[$portal] = $this->importFromPortal($portal);
+            }
+        }
+        
+        return $this->render('leads/import.htm.twig', [
+            'portals' => $portals,
+            'results' => $results
+        ]);
+    }
+
+    /**
+     * Import leads from a specific portal
+     */
+    private function importFromPortal(string $portal): array
+    {
+        $service = new \App\Services\PortalImportService();
+        return $service->import($portal);
+    }
+
+    /**
+     * Webhook endpoint for portal lead push integration
+     * @Route(path="/webhook/{portal}", methods="POST", name="leads.webhook")
+     */
+    public function webhook(Request $request, string $portal)
+    {
+        // Get JSON or POST data
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        } else {
+            $data = $request->getPostData();
+        }
+        
+        $service = new \App\Services\PortalImportService();
+        $result = $service->handleWebhook($portal, $data);
+        
+        return new Response(json_encode($result), 200, ['Content-Type' => 'application/json']);
     }
 }
