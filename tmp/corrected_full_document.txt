@@ -1,0 +1,785 @@
+Real Estate Templates
+
+System Prompt
+
+start >>>
+
+You are the official AI Assistant for {{BUSINESS_NAME}}.
+
+Your role is to politely engage visitors, capture lead details, qualify them step-by-step, and help connect them with the team.
+
+You must behave like a helpful human agent — NOT a robot.
+
+------------------------------------
+🏢 BUSINESS INFORMATION
+------------------------------------
+
+Business Name: {{BUSINESS_NAME}}
+Industry: {{INDUSTRY}}
+Location: {{LOCATION}}
+Services: {{SERVICES}}
+Website: {{WEBSITE}}
+Contact: {{CONTACT_NUMBER}}
+
+------------------------------------
+🎯 PRIMARY OBJECTIVES
+------------------------------------
+
+1) Instantly capture lead details
+2) Ask qualifying questions one by one
+3) Build trust and engagement
+4) Sync data to Google Sheet CRM
+5) Move conversation toward call / visit / booking
+
+------------------------------------
+📥 DATA VARIABLES TO COLLECT
+------------------------------------
+
+name
+phone
+email
+city
+country (new - defaults to "India")
+requirement_type
+budget
+timeline
+additional_notes
+
+If any value is unknown → use "n/a"
+
+name and phone are already provided by system.
+
+------------------------------------
+🔴 CRITICAL — CRM SYNC RULE
+------------------------------------
+
+GoogleSheetsLeadSyncTool MUST be executed on EVERY user message.
+
+Tool execution must NEVER be shown to the user.
+
+------------------------------------
+🔴 FIRST MESSAGE RULE (HIGHEST PRIORITY)
+------------------------------------
+
+On the VERY FIRST user message (example: "hi", "hello", "1", anything):
+
+1) Immediately execute GoogleSheetsLeadSyncTool FIRST
+2) Send FULL payload with ALL variables
+3) Use "n/a" for unknown fields
+4) AFTER tool execution → send conversational reply
+
+------------------------------------
+🔁 EVERY MESSAGE RULE
+------------------------------------
+
+For EVERY user message:
+
+1) Update variables from user input
+2) Execute GoogleSheetsLeadSyncTool
+3) Send FULL payload (all variables)
+4) Unknown fields = "n/a"
+
+------------------------------------
+🔇 SILENT EXECUTION RULE
+------------------------------------
+
+Never display:
+
+- tool calls
+- JSON
+- function names
+- debug text
+- code
+- API responses
+
+User must ONLY see normal chat text.
+
+------------------------------------
+💬 CONVERSATION STYLE
+------------------------------------
+
+✔ Polite and professional
+✔ Friendly human tone
+✔ Natural conversation
+✔ Not robotic
+✔ Short messages (2–4 lines)
+✔ Ask ONE question at a time
+✔ Use simple language
+✔ Be helpful, not pushy
+
+------------------------------------
+🧠 CONVERSATION FLOW
+------------------------------------
+
+STEP 1 — Greeting + Purpose
+
+Greet warmly.
+Introduce business briefly.
+Offer help.
+
+Example:
+"Hello 👋
+Welcome to {{BUSINESS_NAME}}.
+How may I assist you today?"
+
+------------------------------------
+
+STEP 2 — Requirement
+
+Ask what the user is looking for.
+
+Examples:
+• Property type
+• Service needed
+• Goal
+• Project interest
+
+------------------------------------
+
+STEP 3 — Location / City
+
+Ask preferred location if relevant.
+Also ask Country (default: India).
+
+------------------------------------
+
+STEP 4 — Budget / Range
+
+Ask politely.
+
+------------------------------------
+
+STEP 5 — Timeline / Urgency
+
+------------------------------------
+
+STEP 6 — Capture Remaining Details
+
+Ask only if missing.
+
+------------------------------------
+
+STEP 7 — Soft Conversion
+
+Offer next step:
+
+• Call back
+• Site visit
+• Consultation
+• Expert contact
+
+Example:
+"Our team can guide you better.
+Would you like a call from our expert?"
+
+------------------------------------
+🛑 RESPONSE RULES
+------------------------------------
+
+• Never ask multiple questions at once
+• Never sound like a form
+• Never say "provide details"
+• Never mention CRM or data collection
+• Always move conversation forward
+• If user asks unrelated questions → answer briefly then return to flow
+
+------------------------------------
+🌐 LANGUAGE RULE
+------------------------------------
+
+Detect user's language and reply in same language when possible.
+
+------------------------------------
+✅ FINAL CHECK BEFORE SENDING
+------------------------------------
+
+Ensure message:
+
+✔ Is user-friendly
+✔ Contains no code or tool info
+✔ Is not empty
+✔ Sounds human
+
+If empty → regenerate
+
+<<<<<<< end
+
+
+
+Flowise Tool Script
+
+start >>>>>>>>>>
+
+/**
+ * GoogleSheetsLeadSyncTool
+ * Compatible with Universal Lead Capture System Prompt
+ * Flowise Tool Script — MUST return STRING
+ * UPDATED to match actual Google Sheet columns
+ */
+
+const axios = require("axios");
+
+// ===================================
+// 🔧 CONFIGURATION
+// ===================================
+
+// Replace with your Apps Script Web App URL
+const WEBHOOK_URL = "https://script.google.com/macros/s/XXXXXXXXXXXX/exec";
+
+// Identify lead source (optional)
+const SOURCE_LABEL = "Flowise Lead Assistant";
+
+// ===================================
+// 🧠 SESSION INFO (Flowise context)
+// ===================================
+
+const sessionId = $flow?.sessionId || "n/a";
+const chatId = $flow?.chatId || "n/a";
+
+// ===================================
+// 📥 SAFE VARIABLE HELPER
+// ===================================
+
+function getVar(v) {
+  return (typeof v === "undefined" || v === null || v === "")
+    ? "n/a"
+    : v;
+}
+
+// ===================================
+// 📦 PAYLOAD — MATCHES ACTUAL SHEET COLUMNS
+// ===================================
+
+const payload = {
+  // Core Lead Info (matches sheet columns)
+  Lead_Name: getVar($name),
+  Phone: getVar($phone),
+  Email: getVar($email),
+  City: getVar($city),
+  Country: getVar($country) || "India", // Default to India
+  
+  // Qualification Data (mapped to sheet columns)
+  Products_Interested: getVar($requirement_type),
+  Estimated_Value: getVar($budget),
+  
+  // Additional Info
+  Notes: getVar($additional_notes) + (getVar($timeline) !== "n/a" ? " | Timeline: " + getVar($timeline) : ""),
+  
+  // System Metadata
+  Lead_Source: SOURCE_LABEL,
+  Date_Created: new Date().toISOString(),
+  Lead_Status: getVar($lead_status) || "Open",
+  Priority: getVar($priority) || "Medium",
+  
+  // Flowise specific
+  sessionId: sessionId,
+  chatId: chatId
+};
+
+// ===================================
+// 🚀 SEND TO GOOGLE SHEET / CRM
+// ===================================
+
+await axios.post(WEBHOOK_URL, payload, {
+  headers: { "Content-Type": "application/json" },
+  timeout: 15000,
+  validateStatus: status => status >= 200 && status < 500
+});
+
+// ===================================
+// ✅ REQUIRED RETURN VALUE
+// ===================================
+
+return "OK";
+
+<<<<<<<<<<<<<<<<< end
+
+
+
+Google Sheet App Script
+
+>>>>>>>>>>>>
+
+// =====================================================
+// UNIVERSAL LEAD CRM WEBHOOK (Reusable for any bot)
+// Compatible with Flowise Tool Script
+// UPDATED to match actual sheet columns (32 columns)
+// =====================================================
+
+const SHEET_NAME = "Leads";
+
+// =====================================================
+// MAIN POST HANDLER
+// =====================================================
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      throw new Error("Invalid POST data");
+    }
+
+    const data = JSON.parse(e.postData.contents);
+
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = spreadsheet.getSheetByName(SHEET_NAME);
+
+    // =================================================
+    // 📋 ACTUAL SHEET HEADERS (32 columns)
+    // =================================================
+
+    const headers = [
+      "Lead_ID",
+      "Lead_Name",
+      "Email", 
+      "Phone",
+      "Phone_Secondary",
+      "Company_Name",
+      "Job_Title",
+      "Industry",
+      "Lead_Source",
+      "Lead_Status",
+      "Lead_Score",
+      "Estimated_Value",
+      "Currency",
+      "Products_Interested",
+      "Country",
+      "City",
+      "Address",
+      "Assigned_To",
+      "Date_Created",
+      "Created_By",
+      "Last_Updated",
+      "Updated_By",
+      "Next_Follow_Up_Date",
+      "Last_Contact_Date",
+      "Priority",
+      "Notes",
+      "Tags",
+      "Conversion_Probability",
+      "Days_In_Pipeline",
+      "Website",
+      "LinkedIn_URL",
+      "Customer_Name"
+    ];
+
+    // =================================================
+    // 🏗️ CREATE SHEET IF NOT EXISTS
+    // =================================================
+
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet(SHEET_NAME);
+      sheet.appendRow(headers);
+    }
+
+    const phone = data.Phone || "n/a";
+
+    if (phone === "n/a") {
+      throw new Error("Phone is required for lead tracking");
+    }
+
+    const lastRow = sheet.getLastRow();
+
+    // =================================================
+    // 🔍 CHECK IF PHONE ALREADY EXISTS
+    // =================================================
+
+    let existingRow = null;
+
+    if (lastRow > 1) {
+      const phoneRange = sheet
+        .getRange(2, 4, lastRow - 1, 1)  // Column 4 = Phone
+        .getValues();
+
+      for (let i = 0; i < phoneRange.length; i++) {
+        if (String(phoneRange[i][0]) === String(phone)) {
+          existingRow = i + 2;
+          break;
+        }
+      }
+    }
+
+    // =================================================
+    // 📦 BUILD ROW DATA (MATCHES ACTUAL HEADERS)
+    // =================================================
+
+    const now = new Date();
+    const leadId = "LD" + now.getTime(); // Simple Lead ID generator
+
+    const rowData = [
+      existingRow ? sheet.getRange(existingRow, 1).getValue() : leadId,  // Lead_ID
+      data.Lead_Name || "n/a",                                          // Lead_Name
+      data.Email || "n/a",                                              // Email
+      phone,                                                             // Phone
+      data.Phone_Secondary || "n/a",                                     // Phone_Secondary
+      data.Company_Name || "n/a",                                        // Company_Name
+      data.Job_Title || "n/a",                                           // Job_Title
+      data.Industry || "n/a",                                            // Industry
+      data.Lead_Source || "Flowise Bot",                                 // Lead_Source
+      data.Lead_Status || "Open",                                         // Lead_Status
+      data.Lead_Score || 0,                                              // Lead_Score
+      data.Estimated_Value || "n/a",                                     // Estimated_Value
+      data.Currency || "INR",                                            // Currency
+      data.Products_Interested || "n/a",                                 // Products_Interested
+      data.Country || "India",                                           // Country
+      data.City || "n/a",                                                // City
+      data.Address || "n/a",                                             // Address
+      data.Assigned_To || "n/a",                                         // Assigned_To
+      existingRow ? sheet.getRange(existingRow, 19).getValue() : now,    // Date_Created (preserve if exists)
+      data.Created_By || "Bot",                                          // Created_By
+      now,                                                                // Last_Updated
+      data.Updated_By || "Bot",                                          // Updated_By
+      data.Next_Follow_Up_Date || "",                                     // Next_Follow_Up_Date
+      data.Last_Contact_Date || now,                                      // Last_Contact_Date
+      data.Priority || "Medium",                                         // Priority
+      data.Notes || "n/a",                                               // Notes
+      data.Tags || "",                                                    // Tags
+      data.Conversion_Probability || 0,                                  // Conversion_Probability
+      data.Days_In_Pipeline || 0,                                         // Days_In_Pipeline
+      data.Website || "n/a",                                             // Website
+      data.LinkedIn_URL || "n/a",                                        // LinkedIn_URL
+      data.Customer_Name || data.Lead_Name || "n/a"                       // Customer_Name
+    ];
+
+    // =================================================
+    // 🔄 UPDATE EXISTING LEAD (UPSERT)
+    // =================================================
+
+    if (existingRow) {
+      const existingData = sheet
+        .getRange(existingRow, 1, 1, headers.length)
+        .getValues()[0];
+
+      const updatedRow = rowData.map((value, index) => {
+        // Do NOT overwrite with "n/a" or empty values, but always update Last_Updated
+        if ((value !== "n/a" && value !== "" && value !== 0) || index === 20) {
+          return value;
+        }
+        return existingData[index];
+      });
+
+      sheet
+        .getRange(existingRow, 1, 1, headers.length)
+        .setValues([updatedRow]);
+
+      return successResponse("Lead updated");
+    }
+
+    // =================================================
+    // ➕ INSERT NEW LEAD
+    // =================================================
+
+    sheet.appendRow(rowData);
+
+    return successResponse("Lead inserted");
+
+  } catch (err) {
+    Logger.log("Error: " + err.message);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success: false,
+        error: err.message
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// =====================================================
+// SUCCESS RESPONSE
+// =====================================================
+
+function successResponse(message) {
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      success: true,
+      message: message
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+<<<<<<<<<<<<<
+
+
+
+REUSABLE REAL ESTATE FOLLOW-UP AUTOMATION (Apps Script) 
+
+/*********************************************************
+ REAL ESTATE FOLLOW-UP AUTOMATION (Reusable)
+ Sends WhatsApp templates via WhatyPie API
+ Set as Time Trigger: run daily (ex: every morning 10am)
+ UPDATED to match actual sheet columns
+**********************************************************/
+
+const SHEET_NAME = "Leads";
+
+// ===============================
+// WHATYPIE CONFIG
+// ===============================
+
+const WHATYPIE_TOKEN = "YOUR_BEARER_TOKEN";
+
+// Replace with actual WhatyPie template send endpoint
+// Confirm exact endpoint from your account docs/dashboard.
+const WHATYPIE_ENDPOINT = "https://whatypie.com/api/v1/messages/template";
+
+// Optional if using dedicated sender number id
+const FROM_PHONE_NUMBER_ID = "";
+
+// ===============================
+// FOLLOW-UP SEQUENCE
+// days_after_lead_creation
+// ===============================
+
+const FOLLOWUPS = [
+  {
+    stage: 1,
+    dayOffset: 1,
+    template_name: "realestate_followup_day1",
+    language: "en"
+  },
+  {
+    stage: 2,
+    dayOffset: 3,
+    template_name: "realestate_followup_day3",
+    language: "en"
+  },
+  {
+    stage: 3,
+    dayOffset: 7,
+    template_name: "realestate_followup_day7",
+    language: "en"
+  },
+  {
+    stage: 4,
+    dayOffset: 14,
+    template_name: "realestate_followup_day14",
+    language: "en"
+  }
+];
+
+
+// ==================================================
+// MAIN JOB
+// ==================================================
+
+function runFollowupAutomation() {
+
+  const sheet = SpreadsheetApp
+      .getActiveSpreadsheet()
+      .getSheetByName(SHEET_NAME);
+
+  if (!sheet) throw new Error("Sheet not found");
+
+  const data = sheet.getDataRange().getValues();
+
+  if (data.length <= 1) return;
+
+  const headers = data[0];
+
+  const col = indexMap(headers);
+
+  for (let r = 1; r < data.length; r++) {
+
+    const row = data[r];
+
+    const leadStatus = value(row,col,"Lead_Status","Open");
+    const phone = normalizePhone(value(row,col,"Phone",""));
+    const name = value(row,col,"Lead_Name","there");
+    const priority = value(row,col,"Priority","Medium");
+
+    if (!phone) continue;
+
+    // STOP conditions
+    if (
+      leadStatus === "Closed" ||
+      leadStatus === "Replied" ||
+      leadStatus === "Do Not Contact" ||
+      leadStatus === "Converted" ||
+      leadStatus === "Lost"
+    ) {
+      continue;
+    }
+
+    const createdDate = parseDate(
+      value(row,col,"Date_Created", new Date())
+    );
+
+    const daysOld = diffDays(createdDate, new Date());
+
+    // Get last contact date to calculate follow-up stage
+    const lastContactDate = parseDate(
+      value(row,col,"Last_Contact_Date", createdDate)
+    );
+    
+    const daysSinceLastContact = diffDays(lastContactDate, new Date());
+    
+    // Determine current stage based on days since creation
+    const currentStage = getStageFromDays(daysOld);
+
+    const nextFollowup = getNextFollowup(currentStage, daysOld);
+
+    if (!nextFollowup) continue;
+
+    const sent = sendTemplateMessage(
+      phone,
+      nextFollowup.template_name,
+      nextFollowup.language,
+      {
+        field_1: name
+      }
+    );
+
+    if (sent.success) {
+
+      // Update Last_Contact_Date (column 24)
+      setCell(
+        sheet,
+        r+1,
+        col["Last_Contact_Date"],
+        new Date()
+      );
+      
+      // Update Next_Follow_Up_Date (column 23) - set to 3 days from now
+      setCell(
+        sheet,
+        r+1,
+        col["Next_Follow_Up_Date"],
+        new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      );
+
+      Utilities.sleep(1200); // rate limit buffer
+    }
+  }
+}
+
+
+
+// ==================================================
+// DETERMINE CURRENT STAGE FROM DAYS
+// ==================================================
+
+function getStageFromDays(daysOld) {
+  if (daysOld < 3) return 0;       // Before day 3
+  if (daysOld < 7) return 1;       // Day 3-6
+  if (daysOld < 14) return 2;      // Day 7-13
+  if (daysOld >= 14) return 3;     // Day 14+
+  return 0;
+}
+
+// ==================================================
+// DETERMINE NEXT FOLLOWUP
+// ==================================================
+
+function getNextFollowup(currentStage, daysOld) {
+
+  for (let i = 0; i < FOLLOWUPS.length; i++) {
+
+    const f = FOLLOWUPS[i];
+
+    if (
+      f.stage === currentStage + 1 &&
+      daysOld >= f.dayOffset
+    ) {
+      return f;
+    }
+  }
+
+  return null;
+}
+
+
+
+// ==================================================
+// SEND TEMPLATE VIA WHATYPIE
+// ==================================================
+
+function sendTemplateMessage(phone, templateName, lang, vars) {
+
+  try {
+
+    const payload = {
+      from_phone_number_id: FROM_PHONE_NUMBER_ID,
+      phone_number: phone,
+      template_name: templateName,
+      template_language: lang,
+      field_1: vars.field_1 || ""
+    };
+
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer " + WHATYPIE_TOKEN
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(
+      WHATYPIE_ENDPOINT,
+      options
+    );
+
+    const code = response.getResponseCode();
+
+    Logger.log(response.getContentText());
+
+    return {
+      success: code >= 200 && code < 300
+    };
+
+  } catch(e) {
+
+    Logger.log(e);
+
+    return {
+      success:false
+    };
+  }
+}
+
+
+
+// ==================================================
+// HELPERS
+// ==================================================
+
+function normalizePhone(phone) {
+  return String(phone).replace(/[^\d]/g,'');
+}
+
+function diffDays(d1,d2) {
+  return Math.floor(
+    (d2-d1)/(1000*60*60*24)
+  );
+}
+
+function parseDate(v) {
+  return v instanceof Date
+    ? v
+    : new Date(v);
+}
+
+function value(row,map,key,def) {
+  const idx = map[key];
+  if(idx === undefined) return def;
+
+  return row[idx-1] || def;
+}
+
+function setCell(sheet,row,col,val) {
+  if(!col) return;
+  sheet.getRange(row,col).setValue(val);
+}
+
+function indexMap(headers) {
+
+  const map = {};
+
+  headers.forEach(function(h,i) {
+    map[String(h).trim()] = i+1;
+  });
+
+  return map;
+}
+<<<<<<<<<<<<<<<<<<<<<<<<
